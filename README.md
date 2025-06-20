@@ -4,6 +4,7 @@
 - DevTools
 - Spring Data Jpa
 - Spring Validator
+- Spring Security
 - Postgresql
 - Lombok
 - Swagger Documentation
