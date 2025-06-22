@@ -38,4 +38,20 @@ public class UserServiceImpl implements UserService {
         User savedUser = userRepository.save(user);
         return modelMapper.map(savedUser, UserResponseDto.class);
     }
+
+    @Override
+    public UserResponseDto getUserById(Long userId) {
+        User user = userRepository.findById(userId).orElseThrow(
+                () -> new RuntimeException("User not found with id: " + userId)
+        );
+        return modelMapper.map(user, UserResponseDto.class);
+    }
+
+    @Override
+    public void deleteUserById(Long userId) {
+        User user = userRepository.findById(userId).orElseThrow(
+                () -> new RuntimeException("User not found with id: " + userId)
+        );
+        userRepository.delete(user);
+    }
 }
