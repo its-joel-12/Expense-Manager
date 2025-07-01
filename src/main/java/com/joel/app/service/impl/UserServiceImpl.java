@@ -2,6 +2,7 @@ package com.joel.app.service.impl;
 
 import com.joel.app.dto.UserRequestDto;
 import com.joel.app.dto.UserResponseDto;
+import com.joel.app.exception.ResourceNotFoundException;
 import com.joel.app.model.User;
 import com.joel.app.repository.UserRepository;
 import com.joel.app.service.UserService;
@@ -42,7 +43,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserResponseDto getUserById(Long userId) {
         User user = userRepository.findById(userId).orElseThrow(
-                () -> new RuntimeException("User not found with id: " + userId)
+                () -> new ResourceNotFoundException("User not found with id: " + userId)
         );
         return modelMapper.map(user, UserResponseDto.class);
     }
@@ -50,7 +51,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public void deleteUserById(Long userId) {
         User user = userRepository.findById(userId).orElseThrow(
-                () -> new RuntimeException("User not found with id: " + userId)
+                () -> new ResourceNotFoundException("User not found with id: " + userId)
         );
         userRepository.delete(user);
     }
