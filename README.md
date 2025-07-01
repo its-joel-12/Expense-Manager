@@ -8,3 +8,4 @@
 - Postgresql
 - Lombok
 - Swagger Documentation
+- ModelMapper
