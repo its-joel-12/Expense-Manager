@@ -27,6 +27,7 @@ jobs:
       INITIAL_ADMIN_PASSWORD: ${{ secrets.INITIAL_ADMIN_PASSWORD }}
       SPRING_APP_JWT_SECRET: ${{ secrets.SPRING_APP_JWT_SECRET }}
       SPRING_APP_JWT_EXPIRATION_MS: ${{ secrets.SPRING_APP_JWT_EXPIRATION_MS }}
+      TEST_API: ${{ secrets.TEST_API }}
 
     steps:
     - uses: actions/checkout@v4
