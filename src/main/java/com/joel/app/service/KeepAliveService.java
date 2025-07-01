@@ -11,8 +11,8 @@ public class KeepAliveService {
 
     private final RestTemplate restTemplate = new RestTemplate();
 
-//    @Value("${test.api}")
-    private String URL = "https://secure-notes-0myj.onrender.com/api/test";
+    @Value("${test.api}")
+    private String URL;
 
     // Ping once at startup
     @PostConstruct
