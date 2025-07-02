@@ -31,6 +31,7 @@ jobs:
       SPRING_APP_JWT_SECRET: ${{ secrets.SPRING_APP_JWT_SECRET }}
       SPRING_APP_JWT_EXPIRATION_MS: ${{ secrets.SPRING_APP_JWT_EXPIRATION_MS }}
       TEST_API: ${{ secrets.TEST_API }}
+      SERVER_PORT: ${{ secrets.SERVER_PORT}}
 
     steps:
     - uses: actions/checkout@v4
