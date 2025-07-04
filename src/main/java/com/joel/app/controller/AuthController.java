@@ -1,18 +1,21 @@
 package com.joel.app.controller;
 
+import com.joel.app.dto.ApiResponseDto;
+import com.joel.app.exception.ResourceNotFoundException;
 import com.joel.app.model.AppRole;
 import com.joel.app.model.Role;
 import com.joel.app.model.User;
+import com.joel.app.model.UserRole;
 import com.joel.app.repository.RoleRepository;
 import com.joel.app.repository.UserRepository;
+import com.joel.app.repository.UserRoleRepository;
 import com.joel.app.security.jwt.JwtUtils;
 import com.joel.app.security.request.LoginRequest;
 import com.joel.app.security.request.SignupRequest;
 import com.joel.app.security.response.LoginResponse;
-import com.joel.app.security.response.MessageResponse;
 import com.joel.app.security.response.UserInfoResponse;
 import com.joel.app.security.service.UserDetailsImpl;
-import com.joel.app.service.TotpService;
+//import com.joel.app.service.TotpService;
 import com.joel.app.service.UserService;
 import com.joel.app.utils.AuthUtil;
 //import com.warrenstrange.googleauth.GoogleAuthenticatorKey;
@@ -38,7 +41,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("api/auth")
+@RequestMapping("auth")
 public class AuthController {
     @Autowired
     JwtUtils jwtUtils;
@@ -59,22 +62,20 @@ public class AuthController {
     private UserService userService;
 
     @Autowired
-    AuthUtil authUtil;
-
-    @Autowired
-    TotpService totpService;
+    private UserRoleRepository userRoleRepository;
 
     @PostMapping("/public/signin")
-    public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
+    public ResponseEntity<Object> authenticateUser(@RequestBody LoginRequest loginRequest) {
         Authentication authentication;
         try {
             authentication = authenticationManager
-                    .authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
+                    .authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getEmail(), loginRequest.getPassword()));
         } catch (AuthenticationException exception) {
             Map<String, Object> map = new HashMap<>();
-            map.put("message", "Bad credentials");
-            map.put("status", false);
-            return new ResponseEntity<Object>(map, HttpStatus.NOT_FOUND);
+            map.put("message", exception.getMessage());
+            map.put("success", false);
+            map.put("status", "401");
+            return new ResponseEntity<>(map, HttpStatus.UNAUTHORIZED);
         }
 
 //      set the authentication
@@ -93,158 +94,51 @@ public class AuthController {
         LoginResponse response = new LoginResponse(userDetails.getUsername(), roles, jwtToken);
 
         // Return the response entity with the JWT token included in the response body
-        return ResponseEntity.ok(response);
+        return new ResponseEntity<>(response, HttpStatus.OK);
     }
 
     @PostMapping("/public/signup")
-    public ResponseEntity<?> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
-        if (userRepository.existsByUserName(signUpRequest.getUsername())) {
-            return ResponseEntity.badRequest().body(new MessageResponse("Error: Username is already taken!"));
-        }
-
+    public ResponseEntity<Object> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
         if (userRepository.existsByEmail(signUpRequest.getEmail())) {
-            return ResponseEntity.badRequest().body(new MessageResponse("Error: Email is already in use!"));
+            return new ResponseEntity<>(new ApiResponseDto("User already registered with the given email ID!", false), HttpStatus.BAD_REQUEST);
         }
 
         // Create new user's account
-        User user = new User(signUpRequest.getUsername(),
+        User user = new User(
+                signUpRequest.getFirstName(),
+                signUpRequest.getLastName(),
                 signUpRequest.getEmail(),
-                encoder.encode(signUpRequest.getPassword()));
+                encoder.encode(signUpRequest.getPassword()
+                ));
+        user.setTwoFactorEnabled(false);
+        user.setSignUpMethod("email");
+        user.setCreatedBy(user.getFirstName());
+        user = userRepository.save(user);
 
         Set<String> strRoles = signUpRequest.getRole();
+
         Role role;
 
         if (strRoles == null || strRoles.isEmpty()) {
-            role = roleRepository.findByRoleName(AppRole.ROLE_USER)
-                    .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+            role = roleRepository.findByRoleName(AppRole.ROLE_USER.name())
+                    .orElseThrow(() -> new ResourceNotFoundException("Error: Role is not found."));
+            UserRole userRole = new UserRole();
+            userRole.setUserId(user.getUserId());
+            userRole.setRoleId(role.getRoleId());
+            userRoleRepository.save(userRole);
         } else {
-            String roleStr = strRoles.iterator().next();
-            if (roleStr.equals("admin")) {
-                role = roleRepository.findByRoleName(AppRole.ROLE_ADMIN)
-                        .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
-            } else {
-                role = roleRepository.findByRoleName(AppRole.ROLE_USER)
-                        .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
+            for (String roleStr : strRoles) {
+                role = roleRepository.findByRoleName(
+                        roleStr.equalsIgnoreCase("admin") ? AppRole.ROLE_ADMIN.name() : AppRole.ROLE_USER.name()
+                ).orElseThrow(() -> new ResourceNotFoundException("Role not found"));
+                UserRole userRole = new UserRole();
+                userRole.setUserId(user.getUserId());
+                userRole.setRoleId(role.getRoleId());
+                userRoleRepository.save(userRole);
             }
-
-            user.setAccountNonLocked(true);
-            user.setAccountNonExpired(true);
-            user.setCredentialsNonExpired(true);
-            user.setEnabled(true);
-            user.setCredentialsExpiryDate(LocalDate.now().plusYears(1));
-            user.setAccountExpiryDate(LocalDate.now().plusYears(1));
-            user.setTwoFactorEnabled(false);
-            user.setSignUpMethod("email");
-        }
-        user.setRole(role);
-        userRepository.save(user);
-
-        return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
-    }
-
-    //    @CrossOrigin(origins = "http://localhost:3000", maxAge = 3600, allowCredentials = "true", allowedHeaders = "*")
-    @GetMapping("/user")
-    public ResponseEntity<?> getUserDetails(@AuthenticationPrincipal UserDetails userDetails) {
-        User user = userService.findByUsername(userDetails.getUsername());
-
-        List<String> roles = userDetails.getAuthorities().stream()
-                .map(item -> item.getAuthority())
-                .collect(Collectors.toList());
-
-        UserInfoResponse response = new UserInfoResponse(
-                user.getUserId(),
-                user.getUserName(),
-                user.getEmail(),
-                user.isAccountNonLocked(),
-                user.isAccountNonExpired(),
-                user.isCredentialsNonExpired(),
-                user.isEnabled(),
-                user.getCredentialsExpiryDate(),
-                user.getAccountExpiryDate(),
-                user.isTwoFactorEnabled(),
-                roles
-        );
-
-        return ResponseEntity.ok().body(response);
-    }
-
-    @GetMapping("/username")
-    public String currentUserName(@AuthenticationPrincipal UserDetails userDetails) {
-        return (userDetails != null) ? userDetails.getUsername() : "";
-    }
-
-    @PostMapping("/public/forgot-password")
-    public ResponseEntity<?> forgotPassword(@RequestParam String email) {
-        try {
-            userService.generatePasswordResetToken(email);
-            return ResponseEntity.ok(new MessageResponse("Password reset email sent!"));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new MessageResponse("Error sending password reset email"));
         }
 
-    }
-
-    @PostMapping("/public/reset-password")
-    public ResponseEntity<?> resetPassword(@RequestParam String token,
-                                           @RequestParam String newPassword) {
-
-        try {
-            userService.resetPassword(token, newPassword);
-            return ResponseEntity.ok(new MessageResponse("Password reset successful"));
-        } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new MessageResponse(e.getMessage()));
-        }
-    }
-
-    @PostMapping("/enable-2fa")
-    public ResponseEntity<String> enable2FA() {
-        Long userId = authUtil.loggedInUserId();
-        GoogleAuthenticatorKey secret = userService.generate2FASecret(userId);
-        String qrCodeUrl = totpService.getQrCodeUrl(secret, userService.getUserById(userId).getUserName());
-        return new ResponseEntity<>(qrCodeUrl, HttpStatus.OK);
-    }
-
-    @PostMapping("/disable-2fa")
-    public ResponseEntity<String> disable2FA() {
-        Long userId = authUtil.loggedInUserId();
-        userService.disable2FA(userId);
-        return new ResponseEntity<>("2FA Disabled", HttpStatus.OK);
-    }
-
-    @PostMapping("/verify-2fa")
-    public ResponseEntity<String> verify2FA(@RequestParam int code) {
-        Long userId = authUtil.loggedInUserId();
-        boolean isValid = userService.validate2FACode(userId, code);
-        if (isValid) {
-            userService.enable2FA(userId);
-            return new ResponseEntity<>("2FA Verified", HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>("Invalid 2FA Code", HttpStatus.UNAUTHORIZED);
-        }
-    }
-
-    @GetMapping("/user/2fa-status")
-    public ResponseEntity<Object> get2FAStatus() {
-        User user = authUtil.loggedInUser();
-        if (user != null) {
-            return new ResponseEntity<>(Map.of("is2faEnabled", user.isTwoFactorEnabled()), HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>("User not found", HttpStatus.NOT_FOUND);
-        }
-    }
-
-    @PostMapping("/public/verify-2fa-login")
-    public ResponseEntity<String> verify2FALogin(@RequestParam int code, @RequestParam String jwtToken) {
-        String username = jwtUtils.getUserNameFromJwtToken(jwtToken);
-        User user = userService.findByUsername(username);
-        boolean isValid = userService.validate2FACode(user.getUserId(), code);
-        if (isValid) {
-            return new ResponseEntity<>("2FA Verified", HttpStatus.OK);
-        } else {
-            return new ResponseEntity<>("Invalid 2FA Code", HttpStatus.UNAUTHORIZED);
-        }
+        return ResponseEntity.ok(new ApiResponseDto("User registered successfully!", true));
     }
 
 

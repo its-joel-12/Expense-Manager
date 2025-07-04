@@ -1,12 +1,11 @@
 package com.joel.app.security.service;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.joel.app.model.Role;
 import com.joel.app.model.User;
-import com.joel.app.repository.UserRepository;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -14,6 +13,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @NoArgsConstructor
 @Getter
@@ -33,8 +33,6 @@ public class UserDetailsImpl implements UserDetails {
 
     private Collection<? extends GrantedAuthority> authorities;
 
-    @Autowired
-    private UserRepository userRepository;
 
     public UserDetailsImpl(Long id, String firstName, String email, String password,
                            boolean is2faEnabled, Collection<? extends GrantedAuthority> authorities) {
@@ -47,9 +45,11 @@ public class UserDetailsImpl implements UserDetails {
     }
 
 
-    public static UserDetailsImpl build(User user) {
+    public static UserDetailsImpl build(User user, List<Role> roles) {
 
-        GrantedAuthority authority = new SimpleGrantedAuthority(user.getRoleName());
+        List<GrantedAuthority> authorities = roles.stream()
+                .map(role -> new SimpleGrantedAuthority(role.getRoleName()))
+                .collect(Collectors.toList());
 
         return new UserDetailsImpl(
                 user.getUserId(),
@@ -57,7 +57,7 @@ public class UserDetailsImpl implements UserDetails {
                 user.getEmail(),
                 user.getPassword(),
                 user.isTwoFactorEnabled(),
-                List.of(authority) // Wrapping the single authority in a list
+                authorities
         );
     }
 
