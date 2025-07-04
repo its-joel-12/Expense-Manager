@@ -104,6 +104,7 @@ public class SecurityConfig {
                 User user = new User("User","User","user@example.com", passwordEncoder().encode(userPassword));
                 user.setTwoFactorEnabled(false);
                 user.setSignUpMethod("email");
+                user.setCreatedBy("System");
                 user.setRoleId(userRole.getRoleId());
                 user.setRoleName(AppRole.ROLE_USER.name());
                 userRepository.save(user);
@@ -113,6 +114,7 @@ public class SecurityConfig {
                 User admin = new User("Admin","Admin","admin@example.com", passwordEncoder().encode(adminPassword));
                 admin.setTwoFactorEnabled(false);
                 admin.setSignUpMethod("email");
+                admin.setCreatedBy("System");
                 admin.setRoleId(adminRole.getRoleId());
                 admin.setRoleName(AppRole.ROLE_ADMIN.name());
                 userRepository.save(admin);
