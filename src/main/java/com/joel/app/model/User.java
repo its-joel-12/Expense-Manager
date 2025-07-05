@@ -28,8 +28,6 @@ public class User {
     private String twoFactorSecret;
     private boolean isTwoFactorEnabled = false;
     private String signUpMethod;
-    private String roleName;
-    private Integer roleId;
     @CreationTimestamp
     private LocalDateTime createdAt;
     @UpdateTimestamp

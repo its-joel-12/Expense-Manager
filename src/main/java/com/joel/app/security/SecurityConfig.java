@@ -3,9 +3,12 @@ package com.joel.app.security;
 import com.joel.app.model.AppRole;
 import com.joel.app.model.Role;
 import com.joel.app.model.User;
+import com.joel.app.model.UserRole;
 import com.joel.app.repository.RoleRepository;
 import com.joel.app.repository.UserRepository;
+import com.joel.app.repository.UserRoleRepository;
 import com.joel.app.security.jwt.AuthEntryPointJwt;
+import com.joel.app.security.jwt.AuthTokenFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
@@ -47,24 +50,26 @@ public class SecurityConfig {
     @Value("${initial.admin.password}")
     private String adminPassword;
 
-//    @Bean
-//    public AuthTokenFilter authenticationJwtTokenFilter() {
-//        return new AuthTokenFilter();
-//    }
+    @Bean
+    public AuthTokenFilter authenticationJwtTokenFilter() {
+        return new AuthTokenFilter();
+    }
 
     @Bean
     SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
         http.cors(withDefaults());
         http.csrf(AbstractHttpConfigurer::disable);
         http.authorizeHttpRequests((requests)
-                        -> requests
-                        .requestMatchers("/v3/api-docs/**").permitAll()
-                        .requestMatchers("/swagger-ui/**").permitAll()
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/test").permitAll()
-                        .requestMatchers("/api/auth/public/**").permitAll()
-                        .requestMatchers("/oauth2/**").permitAll()
-                        .anyRequest().authenticated());
+                -> requests
+                .requestMatchers("/v3/api-docs/**").permitAll()
+                .requestMatchers("/swagger-ui/**").permitAll()
+                .requestMatchers("/admin/**").hasRole("ADMIN")
+                .requestMatchers("/test").permitAll()
+                .requestMatchers("/auth/public/**").permitAll()
+                .requestMatchers("/oauth2/**").permitAll()
+                .requestMatchers("/admin/**").hasRole("ADMIN")
+//                .requestMatchers("/users/**").permitAll()
+                .anyRequest().authenticated());
 
 //                .oauth2Login(oauth2 -> {
 //                    oauth2.successHandler(oAuth2LoginSuccessHandler);
@@ -73,8 +78,8 @@ public class SecurityConfig {
         http.exceptionHandling(exception
                 -> exception.authenticationEntryPoint(unauthorizedHandler));
 
-//        http.addFilterBefore(authenticationJwtTokenFilter(),
-//                UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(authenticationJwtTokenFilter(),
+                UsernamePasswordAuthenticationFilter.class);
 
         http.formLogin(withDefaults());
         http.httpBasic(withDefaults());
@@ -92,32 +97,37 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CommandLineRunner initData(RoleRepository roleRepository, UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public CommandLineRunner initData(RoleRepository roleRepository, UserRepository userRepository, PasswordEncoder passwordEncoder,
+                                      UserRoleRepository userRoleRepository) {
         return args -> {
-            Role userRole = roleRepository.findByRoleName(AppRole.ROLE_USER.name())
+            Role role = roleRepository.findByRoleName(AppRole.ROLE_USER.name())
                     .orElseGet(() -> roleRepository.save(new Role(AppRole.ROLE_USER)));
 
             Role adminRole = roleRepository.findByRoleName(AppRole.ROLE_ADMIN.name())
                     .orElseGet(() -> roleRepository.save(new Role(AppRole.ROLE_ADMIN)));
 
             if (!userRepository.existsByEmail("user@example.com")) {
-                User user = new User("User","User","user@example.com", passwordEncoder().encode(userPassword));
+                User user = new User("User", "User", "user@example.com", passwordEncoder().encode(userPassword));
                 user.setTwoFactorEnabled(false);
                 user.setSignUpMethod("email");
                 user.setCreatedBy("System");
-                user.setRoleId(userRole.getRoleId());
-                user.setRoleName(AppRole.ROLE_USER.name());
-                userRepository.save(user);
+                user = userRepository.save(user);
+                UserRole userRole = new UserRole();
+                userRole.setUserId(user.getUserId());
+                userRole.setRoleId(role.getRoleId());
+                userRoleRepository.save(userRole);
             }
 
             if (!userRepository.existsByEmail("admin@example.com")) {
-                User admin = new User("Admin","Admin","admin@example.com", passwordEncoder().encode(adminPassword));
+                User admin = new User("Admin", "Admin", "admin@example.com", passwordEncoder().encode(adminPassword));
                 admin.setTwoFactorEnabled(false);
                 admin.setSignUpMethod("email");
                 admin.setCreatedBy("System");
-                admin.setRoleId(adminRole.getRoleId());
-                admin.setRoleName(AppRole.ROLE_ADMIN.name());
-                userRepository.save(admin);
+                admin = userRepository.save(admin);
+                UserRole userRole = new UserRole();
+                userRole.setUserId(admin.getUserId());
+                userRole.setRoleId(adminRole.getRoleId());
+                userRoleRepository.save(userRole);
             }
         };
     }
