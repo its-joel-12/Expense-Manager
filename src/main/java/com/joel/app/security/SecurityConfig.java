@@ -8,6 +8,7 @@ import com.joel.app.repository.RoleRepository;
 import com.joel.app.repository.UserRepository;
 import com.joel.app.repository.UserRoleRepository;
 import com.joel.app.security.jwt.AuthEntryPointJwt;
+import com.joel.app.security.jwt.AuthTokenFilter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
@@ -49,10 +50,10 @@ public class SecurityConfig {
     @Value("${initial.admin.password}")
     private String adminPassword;
 
-//    @Bean
-//    public AuthTokenFilter authenticationJwtTokenFilter() {
-//        return new AuthTokenFilter();
-//    }
+    @Bean
+    public AuthTokenFilter authenticationJwtTokenFilter() {
+        return new AuthTokenFilter();
+    }
 
     @Bean
     SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
@@ -67,7 +68,7 @@ public class SecurityConfig {
                 .requestMatchers("/auth/public/**").permitAll()
                 .requestMatchers("/oauth2/**").permitAll()
                 .requestMatchers("/admin/**").hasRole("ADMIN")
-                .requestMatchers("/users/**").permitAll()
+//                .requestMatchers("/users/**").permitAll()
                 .anyRequest().authenticated());
 
 //                .oauth2Login(oauth2 -> {
@@ -77,8 +78,8 @@ public class SecurityConfig {
         http.exceptionHandling(exception
                 -> exception.authenticationEntryPoint(unauthorizedHandler));
 
-//        http.addFilterBefore(authenticationJwtTokenFilter(),
-//                UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(authenticationJwtTokenFilter(),
+                UsernamePasswordAuthenticationFilter.class);
 
         http.formLogin(withDefaults());
         http.httpBasic(withDefaults());
