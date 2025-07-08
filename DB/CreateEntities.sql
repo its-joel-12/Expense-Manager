@@ -27,6 +27,20 @@ create table user_role (
 	role_id int
 );
 
+-- creating asset table
+create table asset (
+    asset_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+	user_id bigint,
+	asset_name varchar(100) not null,
+	balance decimal(12,4) not null,
+	currency varchar(3),
+	description varchar(300),
+	created_at DATE,
+    updated_at DATE,
+    created_by VARCHAR(100),
+    updated_by VARCHAR(100)	
+);
+
 -- adding foreign key constraint to user_roles table
 ALTER TABLE user_role
 ADD CONSTRAINT fk_user
@@ -37,3 +51,9 @@ ALTER TABLE user_role
 ADD CONSTRAINT fk_role
 FOREIGN KEY (role_id)
 REFERENCES role(role_id);
+
+-- adding foreign key constraint to asset table
+ALTER TABLE asset
+ADD CONSTRAINT fk_user
+FOREIGN KEY (user_id)
+REFERENCES users(user_id);
