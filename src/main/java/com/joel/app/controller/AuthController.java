@@ -31,6 +31,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -98,6 +99,7 @@ public class AuthController {
     }
 
     @PostMapping("/public/signup")
+    @Transactional
     public ResponseEntity<Object> registerUser(@Valid @RequestBody SignupRequest signUpRequest) {
         if (userRepository.existsByEmail(signUpRequest.getEmail())) {
             return new ResponseEntity<>(new ApiResponseDto("User already registered with the given email ID!", false), HttpStatus.BAD_REQUEST);
