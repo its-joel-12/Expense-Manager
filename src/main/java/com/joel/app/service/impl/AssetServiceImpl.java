@@ -12,13 +12,10 @@ import com.joel.app.service.AssetService;
 import com.joel.app.utils.AuthUtil;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
-import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class AssetServiceImpl implements AssetService {
@@ -61,5 +58,17 @@ public class AssetServiceImpl implements AssetService {
         Asset updatedAsset = assetRepository.save(asset);
 
         return modelMapper.map(updatedAsset, AssetResponseDto.class);
+    }
+
+    @Override
+    public List<AssetResponseDto> getAllUserAssets(String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with the email id: " + userEmail));
+        List<Asset> assets = assetRepository.findByUserId(user.getUserId()).orElse(null);
+        if (!assets.isEmpty()) {
+            return assets.stream().map(a -> modelMapper.map(a, AssetResponseDto.class)).toList();
+        } else {
+            throw new ResourceNotFoundException("No Assets found for the user: " + userEmail);
+        }
     }
 }
