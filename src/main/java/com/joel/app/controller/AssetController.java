@@ -13,6 +13,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collection;
+import java.util.List;
 
 @RestController
 @RequestMapping("assets")
@@ -30,5 +31,10 @@ public class AssetController {
     public ResponseEntity<AssetResponseDto> updateAsset(@PathVariable Long assetId, @Valid @RequestBody AssetRequestDto assetRequestDto,
                                                         @AuthenticationPrincipal UserDetails userDetails){
         return new ResponseEntity<>(assetService.updateAsset(assetId, assetRequestDto, userDetails.getUsername()), HttpStatus.OK);
+    }
+
+    @GetMapping()
+    public ResponseEntity<List<AssetResponseDto>> getAllUserAssets(@AuthenticationPrincipal UserDetails userDetails){
+        return new ResponseEntity<>(assetService.getAllUserAssets(userDetails.getUsername()), HttpStatus.OK);
     }
 }
